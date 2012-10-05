@@ -1,0 +1,6 @@
+Implementation of several different autoencoder implementations.
+da.py: Denoising Autoencoder implementation
+ca.py: Contractive Autoencoder implementation
+sa.py: Sparse Autoencoder implementation
+autoencoder.py: Base class for other autoencoder types and basic implementation 
+of a linear autoencoder.
