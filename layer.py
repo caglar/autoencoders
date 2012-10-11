@@ -10,7 +10,7 @@ class Layer(object):
         input,
         n_in,
         n_out,
-        activation=theano.tensor.nnet.sigmoid,
+        activation=T.nnet.sigmoid,
         rng=None):
 
         self.input = input
@@ -28,15 +28,98 @@ class Layer(object):
                 high=numpy.sqrt(6. / (self.n_in + self.n_out)),
                 size=(self.n_in, self.n_out)),
                 dtype=theano.config.floatX)
+
             if self.activation == theano.tensor.nnet.sigmoid:
                 W_values *= 4
-            self.W = theano.shared(value=W_values, name='W')
+
+            self.W = theano.shared(value=W_values, name='W', borrow=True)
 
         if self.b is None or check_flag:
             b_values = numpy.zeros((self.n_out), dtype=theano.config.floatX)
-            self.b = theano.shared(value=b_values, name='b')
+            self.b = theano.shared(value=b_values, name='b', borrow=True)
         # parameters of the model
         self.params = [self.W, self.b]
+
+class AEHiddenLayer(Layer):
+
+    def __init__(self,
+            input,
+            n_in,
+            n_out,
+            W=None,
+            b=None,
+            bhid=None,
+            activation=T.nnet.sigmoid,
+            tied_weights=True,
+            rng=None):
+        """
+        Typical hidden layer of a MLP: units are fully-connected and have
+        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
+        and the bias vector b is of shape (n_out,).
+
+        NOTE : The nonlinearity used here is tanh
+
+        Hidden unit activation is given by: tanh(dot(input,W) + b)
+
+        :type rng: numpy.random.RandomState
+        :param rng: a random number generator used to initialize weights
+
+        :type input: theano.tensor.dmatrix
+        :param input: a symbolic tensor of shape (n_examples, n_in)
+
+        :type n_in: int
+
+        :param n_in: dimensionality of input
+        :type n_out: int
+        :param n_out: number of hidden units
+
+        :type activation: theano.Op or function
+        :param activation: Non linearity to be applied in the hidden layer.
+        """
+        if rng is None:
+            rng = numpy.random.RandomState()
+
+        super(AEHiddenLayer, self).__init__(input, n_in, n_out, activation=activation, rng=rng)
+
+        self.reset_layer()
+
+        if W is not None:
+            self.W = W
+        if b is not None:
+            self.b = b
+
+        if bhid is not None:
+            self.b_prime = bhid
+        else:
+            b_values = numpy.zeros((self.n_in), dtype=theano.config.floatX)
+            self.b_prime = theano.shared(value=b_values, name='b_prime')
+
+        if tied_weights:
+            self.W_prime = self.W.T
+        else:
+            W_values = numpy.asarray(self.rng.uniform(
+                low=-numpy.sqrt(6. / (self.n_in + self.n_out)),
+                high=numpy.sqrt(6. / (self.n_in + self.n_out)),
+                size=(self.n_out, self.n_in)),
+                dtype=theano.config.floatX)
+
+            if self.activation == T.nnet.sigmoid:
+                W_values *= 4
+
+            self.W_prime = theano.shared(value=W_values, name='W', borrow=True)
+            self.params += [self.W_prime]
+
+        self.params += [self.b_prime]
+        self.setup_outputs(input)
+
+    def setup_outputs(self, input):
+        lin_output = T.dot(input, self.W) + self.b
+        self.output = (lin_output if self.activation is None
+                else self.activation(lin_output))
+
+    def get_outputs(self, input):
+        self.setup_outputs(input)
+        return self.output
 
 class HiddenLayer(Layer):
 
@@ -69,11 +152,11 @@ class HiddenLayer(Layer):
             rng = numpy.random.RandomState()
 
         super(HiddenLayer, self).__init__(input, n_in, n_out, activation=activation, rng=rng)
-
         self.reset_layer()
 
         if W is not None:
             self.W = W
+
         if b is not None:
             self.b = b
 
@@ -88,9 +171,9 @@ class HiddenLayer(Layer):
         self.setup_outputs(input)
         return self.output
 
-
 class LogisticRegressionLayer(Layer):
-    """Multi-class Logistic Regression Class
+    """
+    Multi-class Logistic Regression Class.
     The logistic regression is fully described by a weight matrix :math:`W`
     and bias vector :math:`b`. Classification is done by projecting data
     points onto a set of hyperplanes, the distance to which is used to
