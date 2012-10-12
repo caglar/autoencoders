@@ -1,5 +1,10 @@
 *.py[cod]
 
+# data files
+*.npy
+*.pkl
+*.pickle
+
 # C extensions
 *.so
 
