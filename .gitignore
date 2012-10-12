@@ -5,6 +5,11 @@
 *.pkl
 *.pickle
 
+# image files
+*.png
+*.jpeg
+*.jpg
+
 # C extensions
 *.so
 
