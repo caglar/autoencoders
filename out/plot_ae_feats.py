@@ -9,4 +9,5 @@ image = PIL.Image.fromarray(tile_raster_images(
     X=data.T,
     img_shape=(28, 28), tile_shape=(12, 12),
     tile_spacing=(1, 1)))
+
 image.save('filters_ae.png')

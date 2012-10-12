@@ -16,6 +16,8 @@ class Autoencoder(object):
             rnd=None,
             bhid=None,
             cost_type=CostType.CrossEntropy,
+            L2_reg=-1,
+            L1_reg=-1,
             bvis=None):
 
         self.input = input
@@ -39,6 +41,16 @@ class Autoencoder(object):
 
         self.hidden = AEHiddenLayer(input, nvis, nhid, rng=rnd)
         self.params = self.hidden.params
+
+        self.L1_reg = L1_reg
+        self.L2_reg = L2_reg
+
+        if L1_reg != -1:
+            self.L1 += abs(self.hidden.W).sum()
+
+        if L2_reg != -1:
+            self.L2 += (self.hidden.W**2).sum()
+
         if input is not None:
             self.x = input
         else:
@@ -48,6 +60,13 @@ class Autoencoder(object):
         if x_in is None:
             x_in = self.x
         return T.nnet.sigmoid(T.dot(x_in, self.hidden.W) + self.hidden.b)
+
+    def encode_linear(self, x_in=None):
+        if x_in is None:
+            x_in = self.x
+        lin_output = T.dot(x_in, self.hidden.W) + self.hidden.b
+        return T.nnet.sigmoid(lin_output), lin_output
+
 
     def decode(self, h):
         return T.nnet.sigmoid(T.dot(h, self.hidden.W_prime) + self.hidden.b_prime)
@@ -65,6 +84,13 @@ class Autoencoder(object):
         h = self.encode(x_in)
         x_rec = self.decode(h)
         cost = self.get_rec_cost(x_rec)
+
+        if self.L1_reg != -1:
+            cost += self.L1_reg * self.L1
+
+        if self.L2_reg != -1:
+            cost += self.L2_reg * self.L2
+
         gparams = T.grad(cost, self.params)
         updates = {}
         for param, gparam in zip(self.params, gparams):

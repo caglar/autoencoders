@@ -28,13 +28,19 @@ class DenoisingAutoencoder(Autoencoder):
     def corrupt_input(self, in_data, corruption_level):
         return self.theano_rng.binomial(self.x.shape, n=1, p=1-corruption_level) * self.x
 
+    def get_reconstructed_images(self, data):
+        h = self.encode(x_in=data)
+        x_rec = self.decode(h)
+        return x_rec
+
     def fit(self,
             data=None,
             learning_rate=0.1,
             batch_size=100,
             n_epochs=60,
-            corruption_level=0.5,
-            weights_file="out/dae_weights_mnist.npy"):
+            corruption_level=0.3,
+            weights_file="out/dae_weights_mnist.npy",
+            recons_img_file="out/dae_reconstructed_pento.npy"):
 
         if data is None:
             raise Exception("Data can't be empty.")
@@ -58,6 +64,9 @@ class DenoisingAutoencoder(Autoencoder):
                 ae_costs.append(train_ae(batch_index))
             print "Training at epoch %d, %f" % (epoch, numpy.mean(ae_costs))
 
-        print "Saving files..."
+        print "Saving weights..."
         numpy.save(weights_file, self.params[0].get_value())
+        print "Saving reconstructed images..."
+        x_rec = self.get_reconstructed_images(data_shared)
+        numpy.save(recons_img_file, x_rec)
         return ae_costs
