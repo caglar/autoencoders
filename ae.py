@@ -45,6 +45,8 @@ class Autoencoder(object):
         self.L1_reg = L1_reg
         self.L2_reg = L2_reg
 
+        self.L1 = 0
+        self.L2 = 0
         if L1_reg != -1:
             self.L1 += abs(self.hidden.W).sum()
 

@@ -30,22 +30,29 @@ class SparseAutoencoder(Autoencoder):
             x_in = self.x
         return T.dot(x_in, self.hidden.W) + self.hidden.b
 
-    def sparsity_penalty(self, h, linear_hid, sparsity_level=0.0, batch_size=-1):
+    def kl_divergence(self, p, p_hat):
+        return p * T.log(p / p_hat) + (1 - p) * T.log((1 - p) / (1 - p_hat))
+
+    def sparsity_penalty(self, h, sparsity_level=0.05, sparse_reg=1e-3, batch_size=-1):
         """
         Compute the contraction penalty in the way that Ian describes in his e-mail:
         https://groups.google.com/d/topic/pylearn-dev/iY7swxgn-xI/discussion
         """
         if batch_size == -1 or batch_size == 0:
             raise Exception("Invalid batch_size!")
+        sparsity_level = T.extra_ops.repeat(sparsity_level, self.nhid)
         sparsity_penalty = 0
+        avg_act = h.mean(axis=0)
+        kl_div = self.kl_divergence(sparsity_level, avg_act)
+        sparsity_penalty = sparse_reg * kl_div.sum() / batch_size
         # Implement KL divergence here.
         return sparsity_penalty
 
-    def get_sa_sgd_updates(self, learning_rate, sparsity_level, batch_size, x_in=None):
-        h, linear_hid = self.encode_linear(x_in)
+    def get_sa_sgd_updates(self, learning_rate, sparsity_level, sparse_reg, batch_size, x_in=None):
+        h = self.encode(x_in)
         x_rec = self.decode(h)
         cost = self.get_rec_cost(x_rec)
-        sparsity_penal = self.sparsity_penalty(h, linear_hid, sparsity_level, batch_size)
+        sparsity_penal = self.sparsity_penalty(h, sparsity_level, sparse_reg, batch_size)
         cost = cost + sparsity_penal
 
         gparams = T.grad(cost, self.params)
@@ -59,7 +66,8 @@ class SparseAutoencoder(Autoencoder):
             learning_rate=0.1,
             batch_size=100,
             n_epochs=22,
-            sparsity_level=0.1,
+            sparsity_penalty=0.01,
+            sparsity_level=0.05,
             weights_file="out/cae_weights_mnist.npy"):
 
         if data is None:
@@ -68,7 +76,7 @@ class SparseAutoencoder(Autoencoder):
         index = T.lscalar('index')
         data_shared = theano.shared(numpy.asarray(data.tolist(), dtype=theano.config.floatX))
         n_batches = data.shape[0] / batch_size
-        (cost, updates) = self.get_sa_sgd_updates(learning_rate, sparsity_level, batch_size)
+        (cost, updates) = self.get_sa_sgd_updates(learning_rate, sparsity_level, sparsity_penalty, batch_size)
 
         train_ae = theano.function([index],
                                    cost,
