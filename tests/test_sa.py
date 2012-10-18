@@ -11,5 +11,5 @@ if __name__=="__main__":
     x_data = ds.Xtrain
     input = T.dmatrix("x_input")
     rnd = numpy.random.RandomState(1231)
-    dae = SparseAutoencoder(input, nvis=28*28, nhid=500, rnd=rnd)
+    dae = SparseAutoencoder(input, nvis=28*28, nhid=2000, rnd=rnd)
     dae.fit(data=x_data)

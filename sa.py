@@ -63,12 +63,12 @@ class SparseAutoencoder(Autoencoder):
 
     def fit(self,
             data=None,
-            learning_rate=0.1,
+            learning_rate=0.08,
             batch_size=100,
             n_epochs=22,
-            sparsity_penalty=0.01,
+            sparsity_penalty=0.001,
             sparsity_level=0.05,
-            weights_file="out/cae_weights_mnist.npy"):
+            weights_file="out/sa_weights_mnist.npy"):
 
         if data is None:
             raise Exception("Data can't be empty.")
