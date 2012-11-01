@@ -42,6 +42,10 @@ nosetests.xml
 *.bz2
 *.pyc
 
+#images
+*.png
+*.jpg
+
 #Jobman logs
 *.err
 *.out
