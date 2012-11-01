@@ -48,12 +48,13 @@ class Dataset(object):
 
         self.Xtrain = data[0][:ntrain]
         self.Xtest = data[0][ntrain:]
+        if train_split_scale != 0.0:
+            self.Ytrain = np.array(self.binarize_labels(data[1][:ntrain].flatten()) \
+            if self.is_binary else data[1][:ntrain].flatten())
 
-        self.Ytrain = np.array(self.binarize_labels(data[1][:ntrain].flatten()) \
-        if self.is_binary else data[1][:ntrain].flatten())
-
-        self.Ytest = np.array(self.binarize_labels(data[1][ntrain:].flatten()) \
-        if self.is_binary else data[1][ntrain:].flatten())
+        if train_split_scale != 1.0:
+            self.Ytest = np.array(self.binarize_labels(data[1][ntrain:].flatten()) \
+            if self.is_binary else data[1][ntrain:].flatten())
 
     def comp_sparsity(self):
         num_sparse_els = 0

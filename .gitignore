@@ -1,15 +1,5 @@
 *.py[cod]
 
-# data files
-*.npy
-*.pkl
-*.pickle
-
-# image files
-*.png
-*.jpeg
-*.jpg
-
 # C extensions
 *.so
 
@@ -36,10 +26,27 @@ pip-log.txt
 .tox
 nosetests.xml
 
-# Translations
+#Translations
 *.mo
 
-# Mr Developer
+#Mr Developer
 .mr.developer.cfg
-.project
-.pydevproject
+
+#Vim thrashes
+*.swp
+
+#binary data
+*.pkl
+*.npy
+*.gz
+*.bz2
+*.pyc
+
+#Jobman logs
+*.err
+*.out
+*.condor
+gulcehre_db/
+LOGS/
+*.txt
+*.conf

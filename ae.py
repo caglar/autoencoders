@@ -47,6 +47,7 @@ class Autoencoder(object):
 
         self.L1 = 0
         self.L2 = 0
+
         if L1_reg != -1:
             self.L1 += abs(self.hidden.W).sum()
 
@@ -85,12 +86,12 @@ class Autoencoder(object):
     def get_sgd_updates(self, learning_rate, x_in=None):
         h = self.encode(x_in)
         x_rec = self.decode(h)
-        cost = self.get_rec_cost(x_rec)
 
-        if self.L1_reg != -1:
+        cost = self.get_rec_cost(x_rec)
+        if self.L1_reg != -1 and self.L1_reg != None:
             cost += self.L1_reg * self.L1
 
-        if self.L2_reg != -1:
+        if self.L2_reg != -1 and self.L2_reg != None:
             cost += self.L2_reg * self.L2
 
         gparams = T.grad(cost, self.params)
@@ -128,6 +129,7 @@ class Autoencoder(object):
 
         print "Started the training."
         ae_costs = []
+
         for epoch in xrange(n_epochs):
             print "Training at epoch %d" % epoch
             for batch_index in xrange(n_batches):

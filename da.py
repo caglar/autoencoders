@@ -39,7 +39,7 @@ class DenoisingAutoencoder(Autoencoder):
             batch_size=100,
             n_epochs=60,
             corruption_level=0.3,
-            weights_file="out/dae_weights_mnist.npy",
+            weights_file=None,
             recons_img_file="out/dae_reconstructed_pento.npy"):
 
         if data is None:
@@ -48,7 +48,9 @@ class DenoisingAutoencoder(Autoencoder):
         index = T.lscalar('index')
         data_shared = theano.shared(numpy.asarray(data.tolist(), dtype=theano.config.floatX))
         n_batches = data.shape[0] / batch_size
+
         corrupted_input = self.corrupt_input(data_shared, corruption_level)
+
         (cost, updates) = self.get_sgd_updates(learning_rate, corrupted_input)
 
         train_ae = theano.function([index],
@@ -64,9 +66,11 @@ class DenoisingAutoencoder(Autoencoder):
                 ae_costs.append(train_ae(batch_index))
             print "Training at epoch %d, %f" % (epoch, numpy.mean(ae_costs))
 
-        print "Saving weights..."
-        numpy.save(weights_file, self.params[0].get_value())
-        print "Saving reconstructed images..."
-        x_rec = self.get_reconstructed_images(data_shared)
-        numpy.save(recons_img_file, x_rec)
+        if weights_file is not None:
+            print "Saving weights..."
+            numpy.save(weights_file, self.params[0].get_value())
+            print "Saving reconstructed images..."
+            x_rec = self.get_reconstructed_images(data_shared)
+            numpy.save(recons_img_file, x_rec)
+
         return ae_costs
