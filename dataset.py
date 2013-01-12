@@ -18,6 +18,9 @@ class Dataset(object):
         self.Ytrain = None
         self.Ytest = None
 
+        self.Xtrain_pres = None
+        self.Xtest_pres = None
+
         self.sparsity = 0.0
         self.n_examples = 0
 
@@ -47,7 +50,10 @@ class Dataset(object):
         ntrain = math.floor(self.n_examples * train_split_scale)
 
         self.Xtrain = data[0][:ntrain]
+        self.Xtrain_pres = data[2][:ntrain]
         self.Xtest = data[0][ntrain:]
+        self.Xtest_pre = data[2][ntrain:]
+
         if train_split_scale != 0.0:
             self.Ytrain = np.array(self.binarize_labels(data[1][:ntrain].flatten()) \
             if self.is_binary else data[1][:ntrain].flatten())

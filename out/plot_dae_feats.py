@@ -3,10 +3,10 @@ import numpy
 from utils import tile_raster_images
 import pickle as pkl
 
-data = numpy.load("dae_weights_pento.npy")
+data = numpy.load("dae_mnist_weights.npy")
 
 image = PIL.Image.fromarray(tile_raster_images(
     X=data.T,
-    img_shape=(64, 64), tile_shape=(12, 12),
+    img_shape=(28, 28), tile_shape=(12, 12),
     tile_spacing=(1, 1)))
-image.save('filters_dae.png')
+image.save('mnist_filters_dae.png')

@@ -4,7 +4,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 import numpy
 
-from ae import Autoencoder, CostType
+from ae import Autoencoder, CostType, Nonlinearity
 
 #Contractive Autoencoder implementation.
 class ContractiveAutoencoder(Autoencoder):
@@ -16,11 +16,13 @@ class ContractiveAutoencoder(Autoencoder):
             rnd=None,
             theano_rng=None,
             bhid=None,
-            cost_type=CostType.CrossEntropy,
+            nonlinearity=Nonlinearity.SIGMOID,
+            cost_type=CostType.MeanSquared,
             bvis=None):
 
         # create a Theano random generator that gives symbolic random values
-        super(ContractiveAutoencoder, self).__init__(input, nvis, nhid, rnd, bhid, cost_type, bvis)
+        super(ContractiveAutoencoder, self).__init__(input, nvis, nhid, rnd, bhid, cost_type,
+                nonlinearity=nonlinearity, sparse_initialize=True, bvis=bvis)
         if not theano_rng :
             theano_rng = RandomStreams(rnd.randint(2 ** 30))
         self.theano_rng = theano_rng
@@ -50,7 +52,6 @@ class ContractiveAutoencoder(Autoencoder):
         cost = self.get_rec_cost(x_rec)
         contract_penal = self.contraction_penalty(h, linear_hid, contraction_level, batch_size)
         cost = cost + contract_penal
-
         gparams = T.grad(cost, self.params)
         updates = {}
         for param, gparam in zip(self.params, gparams):
@@ -63,6 +64,7 @@ class ContractiveAutoencoder(Autoencoder):
             batch_size=100,
             n_epochs=22,
             contraction_level=0.1,
+            shuffle_data=True,
             weights_file="out/cae_weights_mnist.npy"):
 
         if data is None:
@@ -81,6 +83,10 @@ class ContractiveAutoencoder(Autoencoder):
         print "Started the training."
         ae_costs = []
         for epoch in xrange(n_epochs):
+            if shuffle_data:
+                print "shuffling the dataset"
+                numpy.random.shuffle(data)
+                data_shared.set_value(data)
             print "Training at epoch %d" % epoch
             for batch_index in xrange(n_batches):
                 ae_costs.append(train_ae(batch_index))

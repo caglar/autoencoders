@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy
 import theano
 from theano import tensor as T
@@ -11,34 +12,58 @@ class Layer(object):
         n_in,
         n_out,
         activation=T.nnet.sigmoid,
+        sparse_initialize=True,
+        non_zero_units=25,
         rng=None):
 
         self.input = input
         self.n_in = n_in
         self.n_out = n_out
         self.rng = rng
+        self.sparse_initialize = sparse_initialize
+        self.non_zero_units = non_zero_units
         self.W = None
         self.b = None
+        self.sparse_initialize = sparse_initialize
         self.activation = activation
 
     def reset_layer(self):
-        if self.W is None or check_flag:
-            W_values = numpy.asarray(self.rng.uniform(
-                low=-numpy.sqrt(6. / (self.n_in + self.n_out)),
-                high=numpy.sqrt(6. / (self.n_in + self.n_out)),
-                size=(self.n_in, self.n_out)),
-                dtype=theano.config.floatX)
+        if self.W is None:
+            if self.sparse_initialize:
+                W_values = self.sparse_initialize_weights()
+            else:
+                W_values = numpy.asarray(self.rng.uniform(
+                    low=-numpy.sqrt(6. / (self.n_in + self.n_out)),
+                    high=numpy.sqrt(6. / (self.n_in + self.n_out)),
+                    size=(self.n_in, self.n_out)),
+                    dtype=theano.config.floatX)
 
-            if self.activation == theano.tensor.nnet.sigmoid:
-                W_values *= 4
+                if self.activation == theano.tensor.nnet.sigmoid:
+                    W_values *= 4
 
             self.W = theano.shared(value=W_values, name='W', borrow=True)
 
-        if self.b is None or check_flag:
+        if self.b is None:
             b_values = numpy.zeros((self.n_out), dtype=theano.config.floatX)
             self.b = theano.shared(value=b_values, name='b', borrow=True)
         # parameters of the model
         self.params = [self.W, self.b]
+
+    def sparse_initialize_weights(self):
+        #Implement the sparse initialization technique as decribed in 2010 Martens.
+        W = []
+        mu, sigma = 0, 1/self.non_zero_units
+
+        for i in xrange(self.n_in):
+            row = numpy.zeros(self.n_out)
+            non_zeros = self.rng.normal(mu, sigma, self.non_zero_units)
+            #non_zeros /= non_zeros.sum()
+            non_zero_idxs = self.rng.permutation(self.n_out)[0:self.non_zero_units]
+            for j in xrange(self.non_zero_units):
+                row[non_zero_idxs[j]] = non_zeros[j]
+            W.append(row)
+        W = numpy.asarray(W)
+        return W
 
 class AEHiddenLayer(Layer):
 
@@ -50,6 +75,7 @@ class AEHiddenLayer(Layer):
             b=None,
             bhid=None,
             activation=T.nnet.sigmoid,
+            sparse_initialize=False,
             tied_weights=True,
             rng=None):
         """
@@ -79,7 +105,12 @@ class AEHiddenLayer(Layer):
         if rng is None:
             rng = numpy.random.RandomState()
 
-        super(AEHiddenLayer, self).__init__(input, n_in, n_out, activation=activation, rng=rng)
+        super(AEHiddenLayer, self).__init__(input,
+                n_in,
+                n_out,
+                activation=activation,
+                sparse_initialize=sparse_initialize,
+                rng=rng)
 
         self.reset_layer()
 

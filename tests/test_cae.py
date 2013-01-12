@@ -10,6 +10,8 @@ if __name__=="__main__":
     ds.setup_dataset(data_path=fname, train_split_scale=0.8)
     x_data = ds.Xtrain
     input = T.dmatrix("x_input")
+    weights_file = "../out/cae_mnist_weights.npy"
+
     rnd = numpy.random.RandomState(1231)
-    dae = ContractiveAutoencoder(input, nvis=28*28, nhid=500, rnd=rnd)
-    dae.fit(data=x_data)
+    dae = ContractiveAutoencoder(input, nvis=28*28, nhid=600, rnd=rnd)
+    dae.fit(data=x_data, weights_file=weights_file, n_epochs=100)

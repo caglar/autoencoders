@@ -34,17 +34,13 @@ class SparseAutoencoder(Autoencoder):
         return p * T.log(p / p_hat) + (1 - p) * T.log((1 - p) / (1 - p_hat))
 
     def sparsity_penalty(self, h, sparsity_level=0.05, sparse_reg=1e-3, batch_size=-1):
-        """
-        Compute the contraction penalty in the way that Ian describes in his e-mail:
-        https://groups.google.com/d/topic/pylearn-dev/iY7swxgn-xI/discussion
-        """
         if batch_size == -1 or batch_size == 0:
             raise Exception("Invalid batch_size!")
         sparsity_level = T.extra_ops.repeat(sparsity_level, self.nhid)
         sparsity_penalty = 0
         avg_act = h.mean(axis=0)
         kl_div = self.kl_divergence(sparsity_level, avg_act)
-        sparsity_penalty = sparse_reg * kl_div.sum() / batch_size
+        sparsity_penalty = sparse_reg * kl_div.sum()
         # Implement KL divergence here.
         return sparsity_penalty
 
