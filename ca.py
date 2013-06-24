@@ -1,10 +1,10 @@
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-
 import numpy
 
 from ae import Autoencoder, CostType, Nonlinearity
+from collections import OrderedDict
 
 #Contractive Autoencoder implementation.
 class ContractiveAutoencoder(Autoencoder):
@@ -16,10 +16,11 @@ class ContractiveAutoencoder(Autoencoder):
             rnd=None,
             theano_rng=None,
             bhid=None,
+            sigma=0.3,
             nonlinearity=Nonlinearity.SIGMOID,
             cost_type=CostType.MeanSquared,
             bvis=None):
-
+        self.sigma = sigma
         # create a Theano random generator that gives symbolic random values
         super(ContractiveAutoencoder, self).__init__(input, nvis, nhid, rnd, bhid, cost_type,
                 nonlinearity=nonlinearity, sparse_initialize=True, bvis=bvis)
@@ -53,10 +54,34 @@ class ContractiveAutoencoder(Autoencoder):
         contract_penal = self.contraction_penalty(h, linear_hid, contraction_level, batch_size)
         cost = cost + contract_penal
         gparams = T.grad(cost, self.params)
-        updates = {}
+        updates = OrderedDict({})
         for param, gparam in zip(self.params, gparams):
             updates[param] = param - learning_rate * gparam
         return (cost, updates)
+
+    def sample(self, x, K):
+
+        if x.ndim == 1:
+            x = x.reshape(1, x.shape[0])
+        hn = self.encode(x)
+        W = self.params[0]
+        ww = T.dot(W.T, W)
+        samples = []
+        for _ in range(K):
+            s = hn * (1. - hn)
+            jj = ww * s.dimshuffle(0, 'x', 1) * s.dimshuffle(0, 1, 'x')
+            alpha = self.srng.normal(size=hn.shape,
+                    avg=0.,
+                    std=self.sigma,
+                    dtype=theano.config.floatX)
+
+            delta = (alpha.dimshuffle(0, 1, 'x') * jj).sum(1)
+
+            zn = self.decode(hn + delta)
+            hn = self.encode(zn)
+            #zn2 = self.decode(hn)
+            samples.append(zn.eval())
+        return samples
 
     def fit(self,
             data=None,
@@ -70,8 +95,9 @@ class ContractiveAutoencoder(Autoencoder):
         if data is None:
             raise Exception("Data can't be empty.")
 
-        index = T.lscalar('index')
-        data_shared = theano.shared(numpy.asarray(data.tolist(), dtype=theano.config.floatX))
+        index = T.iscalar('index')
+        data = numpy.asarray(data.tolist(), dtype="float32")
+        data_shared = theano.shared(data)
         n_batches = data.shape[0] / batch_size
         (cost, updates) = self.get_ca_sgd_updates(learning_rate, contraction_level, batch_size)
 

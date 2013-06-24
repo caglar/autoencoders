@@ -12,7 +12,7 @@ class Layer(object):
         n_in,
         n_out,
         activation=T.nnet.sigmoid,
-        sparse_initialize=True,
+        sparse_initialize=False,
         non_zero_units=25,
         rng=None):
 
@@ -62,7 +62,7 @@ class Layer(object):
             for j in xrange(self.non_zero_units):
                 row[non_zero_idxs[j]] = non_zeros[j]
             W.append(row)
-        W = numpy.asarray(W)
+        W = numpy.asarray(W, dtype=theano.config.floatX)
         return W
 
 class AEHiddenLayer(Layer):

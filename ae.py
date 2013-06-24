@@ -1,7 +1,13 @@
 import theano
 import theano.tensor as T
+from theano.tensor.shared_randomstreams import RandomStreams
+
 from layer import AEHiddenLayer
 import numpy
+
+from collections import OrderedDict
+
+theano.config.warn.subtensor_merge_bug = False
 
 class Nonlinearity:
     RELU = "rectifier"
@@ -13,6 +19,7 @@ class CostType:
     CrossEntropy = "CrossEntropy"
 
 class Autoencoder(object):
+
     def __init__(self,
             input,
             nvis,
@@ -23,7 +30,7 @@ class Autoencoder(object):
             momentum=1,
             L2_reg=-1,
             L1_reg=-1,
-            sparse_initialize=True,
+            sparse_initialize=False,
             nonlinearity=Nonlinearity.TANH,
             bvis=None,
             tied_weights=True):
@@ -51,6 +58,8 @@ class Autoencoder(object):
         else:
             self.rnd = rnd
 
+        self.srng = RandomStreams(seed=1231)
+
         self.hidden = AEHiddenLayer(input,
                 nvis,
                 nhid,
@@ -58,6 +67,7 @@ class Autoencoder(object):
                 tied_weights=tied_weights,
                 sparse_initialize=sparse_initialize,
                 rng=rnd)
+
         self.params = self.hidden.params
 
         self.L1_reg = L1_reg
@@ -77,7 +87,7 @@ class Autoencoder(object):
         if input is not None:
             self.x = input
         else:
-            self.x = T.dmatrix('x_input')
+            self.x = T.matrix('x_input')
 
     def nonlinearity_fn(self, d_in=None, recons=False):
         if self.nonlinearity == Nonlinearity.SIGMOID:
@@ -126,8 +136,72 @@ class Autoencoder(object):
         # Implement KL divergence here.
         return sparsity_penalty
 
-    def get_sgd_updates(self, learning_rate, lr_scaler=1.0, batch_size=-1, sparsity_level=-1, sparse_reg=-1, x_in=None):
+    def act_grads(self, inputs):
+        h, acts = self.encode_linear(inputs)
+        h_grad = T.grad(h.sum(), acts)
+        return (h, h_grad)
 
+    def jacobian_h_x(self, inputs):
+        h, act_grad = self.act_grads(inputs)
+        jacobian = self.hidden.W * act_grad.dimshuffle(0, 'x', 1)
+        return (h, T.reshape(jacobian, newshape=(self.nhid, self.nvis)))
+
+    def compute_jacobian_h_x(self, inputs):
+
+        inputs = theano.shared(inputs.flatten())
+        h = self.encode(inputs)
+        #h = h.flatten()
+        #inputs = inputs.flatten()
+        #inputs = T.reshape(inputs, newshape=(self.nvis))
+        J = theano.gradient.jacobian(h, inputs)
+        return h, J
+
+    def sample_one_step(self, x, sigma):
+        #h, J_t = self.jacobian_h_x(x)
+        h, J_t = self.compute_jacobian_h_x(x)
+        eps = self.srng.normal(avg=0, size=(self.nhid, 1), std=sigma)
+        jacob_w_eps = T.dot(J_t.T, eps)
+        delta_h = T.dot(J_t, jacob_w_eps)
+        perturbed_h = h + delta_h.T
+        x = self.decode(perturbed_h)
+        return x
+
+    def sample_scan(self, x, sigma, n_steps, samples):
+        # enable on-the-fly graph computations
+        # theano.config.compute_test_value = 'raise'
+        in_val = T.fmatrix("input_values")
+        #in_val.tag.test_value = numpy.asarray(numpy.random.rand(1, 784), dtype=theano.config.floatX)
+        s_sigma = T.fscalar("sigma_values")
+        #s_sigma = numpy.asarray(numpy.random.rand(1), dtype=theano.config.floatX)
+        mode = "FAST_RUN"
+        values, updates = theano.scan(fn=self.sample_one_step,
+            outputs_info=in_val,
+            non_sequences=s_sigma,
+            n_steps=n_steps,
+            mode=mode)
+        ae_sampler = theano.function(inputs=[in_val, s_sigma], outputs=values[-1], updates=updates)
+        samples = ae_sampler(x, sigma)
+        return samples
+
+    def sample_old(self, x, sigma, n_steps):
+        # enable on-the-fly graph computations
+        # theano.config.compute_test_value = 'raise'
+        #in_val = T.fmatrix("input_values")
+        #in_val.tag.test_value = numpy.asarray(numpy.random.rand(1, 784), dtype=theano.config.floatX)
+        #s_sigma = T.fscalar("sigma_values")
+        #s_sigma = numpy.asarray(numpy.random.rand(1), dtype=theano.config.floatX)
+        #mode = "FAST_RUN"
+        samples = []
+        sample = x
+        samples.append(x)
+        for i in xrange(n_steps):
+            print "Sample %d..." % i
+            sampler = self.sample_one_step(sample, sigma)
+            sample = sampler.eval()
+            samples.append(sample)
+        return samples
+
+    def get_sgd_updates(self, learning_rate, lr_scaler=1.0, batch_size=-1, sparsity_level=-1, sparse_reg=-1, x_in=None):
         h = self.encode(x_in)
         x_rec = self.decode(h)
         cost = self.get_rec_cost(x_rec)
@@ -143,7 +217,7 @@ class Autoencoder(object):
             cost += sparsity_penal
 
         self.gparams = T.grad(cost, self.params)
-        updates = {}
+        updates = OrderedDict({})
         for param, gparam in zip(self.params, self.gparams):
             updates[param] = self.momentum * param - lr_scaler * learning_rate * gparam
         return (cost, updates)
