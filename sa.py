@@ -31,7 +31,11 @@ class SparseAutoencoder(Autoencoder):
         return T.dot(x_in, self.hidden.W) + self.hidden.b
 
     def kl_divergence(self, p, p_hat):
-        return p * T.log(p / p_hat) + (1 - p) * T.log((1 - p) / (1 - p_hat))
+        term1 = p * T.log(p)
+        term2 = p * T.log(p_hat)
+        term3 = (1-p) * T.log(1 - p)
+        term4 = (1-p) * T.log(1 - p_hat)
+        return term1 - term2 + term3 - term4
 
     def sparsity_penalty(self, h, sparsity_level=0.05, sparse_reg=1e-3, batch_size=-1):
         if batch_size == -1 or batch_size == 0:
