@@ -69,7 +69,7 @@ if __name__=="__main__":
     dae_l2.fit(learning_rate=0.95*1e-1,
             data=dae_l2_in,
             weights_file=weights_file_l2,
-            contraction_level=0.15,
+            contraction_level=0.25,
             batch_size=128,
             n_epochs=80)
 

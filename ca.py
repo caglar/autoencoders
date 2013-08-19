@@ -16,7 +16,7 @@ class ContractiveAutoencoder(Autoencoder):
             rnd=None,
             theano_rng=None,
             bhid=None,
-            sigma=0.3,
+            sigma=0.06,
             nonlinearity=Nonlinearity.SIGMOID,
             cost_type=CostType.MeanSquared,
             bvis=None):

@@ -23,11 +23,14 @@ class Autoencoder(object):
     def __init__(self,
             input,
             nvis,
-            nhid,
+            nhid=None,
+            nvis_dec=None,
+            nhid_dec=None,
             rnd=None,
             bhid=None,
             cost_type=CostType.MeanSquared,
             momentum=1,
+            num_pieces=1,
             L2_reg=-1,
             L1_reg=-1,
             sparse_initialize=False,
@@ -63,6 +66,9 @@ class Autoencoder(object):
         self.hidden = AEHiddenLayer(input,
                 nvis,
                 nhid,
+                num_pieces=num_pieces,
+                n_in_dec=nvis_dec,
+                n_out_dec=nhid_dec,
                 activation=None,
                 tied_weights=tied_weights,
                 sparse_initialize=sparse_initialize,
@@ -80,14 +86,18 @@ class Autoencoder(object):
 
         if L1_reg != -1:
             self.L1 += abs(self.hidden.W).sum()
+            if not tied_weights and 0:
+                self.L1 += abs(self.hidden.W_prime).sum()
 
         if L2_reg != -1:
             self.L2 += (self.hidden.W**2).sum()
+            if not tied_weights and 0:
+                self.L2 += (self.hidden.W_prime**2).sum()
 
         if input is not None:
             self.x = input
         else:
-            self.x = T.matrix('x_input')
+            self.x = T.matrix('x_input', dtype=theano.config.floatX)
 
     def nonlinearity_fn(self, d_in=None, recons=False):
         if self.nonlinearity == Nonlinearity.SIGMOID:
@@ -99,10 +109,13 @@ class Autoencoder(object):
         elif self.nonlinearity == Nonlinearity.TANH:
             return T.tanh(d_in)
 
-    def encode(self, x_in=None):
+    def encode(self, x_in=None, center=True):
         if x_in is None:
             x_in = self.x
-        return self.nonlinearity_fn(T.dot(x_in, self.hidden.W) + self.hidden.b)
+        act = self.nonlinearity_fn(T.dot(x_in, self.hidden.W) + self.hidden.b)
+        if center:
+            act = act - act.mean(0)
+        return act
 
     def encode_linear(self, x_in=None):
         if x_in is None:
@@ -120,10 +133,10 @@ class Autoencoder(object):
         if self.cost_type == CostType.MeanSquared:
             return T.mean(((self.x - x_rec)**2).sum(axis=1))
         elif self.cost_type == CostType.CrossEntropy:
-            return T.mean((T.nnet.binary_crossentropy(x_rec, self.x)).sum(axis=1))
+            return T.mean((T.nnet.binary_crossentropy(x_rec, self.x)).mean(axis=1))
 
     def kl_divergence(self, p, p_hat):
-        return p * T.log(p / p_hat) + (1 - p) * T.log((1 - p) / (1 - p_hat))
+        return p * T.log(p) - T.log(p_hat) + (1 - p) * T.log(1 - p) - (1 - p) * T.log(1 - p_hat)
 
     def sparsity_penalty(self, h, sparsity_level=0.05, sparse_reg=1e-3, batch_size=-1):
         if batch_size == -1 or batch_size == 0:

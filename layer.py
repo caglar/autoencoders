@@ -13,9 +13,11 @@ class Layer(object):
         n_out,
         activation=T.nnet.sigmoid,
         sparse_initialize=False,
+        num_pieces=1,
         non_zero_units=25,
         rng=None):
 
+        self.num_pieces = num_pieces
         self.input = input
         self.n_in = n_in
         self.n_out = n_out
@@ -44,7 +46,7 @@ class Layer(object):
             self.W = theano.shared(value=W_values, name='W', borrow=True)
 
         if self.b is None:
-            b_values = numpy.zeros((self.n_out), dtype=theano.config.floatX)
+            b_values = numpy.zeros((self.n_out/self.num_pieces), dtype=theano.config.floatX)
             self.b = theano.shared(value=b_values, name='b', borrow=True)
         # parameters of the model
         self.params = [self.W, self.b]
@@ -71,8 +73,11 @@ class AEHiddenLayer(Layer):
             input,
             n_in,
             n_out,
+            n_in_dec=None,
+            n_out_dec=None,
             W=None,
             b=None,
+            num_pieces=1,
             bhid=None,
             activation=T.nnet.sigmoid,
             sparse_initialize=False,
@@ -108,6 +113,7 @@ class AEHiddenLayer(Layer):
         super(AEHiddenLayer, self).__init__(input,
                 n_in,
                 n_out,
+                num_pieces=num_pieces,
                 activation=activation,
                 sparse_initialize=sparse_initialize,
                 rng=rng)
@@ -122,20 +128,31 @@ class AEHiddenLayer(Layer):
         if bhid is not None:
             self.b_prime = bhid
         else:
-            b_values = numpy.zeros((self.n_in), dtype=theano.config.floatX)
+            if n_in_dec is not None:
+                b_values = numpy.zeros((n_out_dec), dtype=theano.config.floatX)
+            else:
+                b_values = numpy.zeros((self.n_out/num_pieces), dtype=theano.config.floatX)
+
             self.b_prime = theano.shared(value=b_values, name='b_prime')
 
         if tied_weights:
             self.W_prime = self.W.T
         else:
-            W_values = numpy.asarray(self.rng.uniform(
-                low=-numpy.sqrt(6. / (self.n_in + self.n_out)),
-                high=numpy.sqrt(6. / (self.n_in + self.n_out)),
-                size=(self.n_out, self.n_in)),
-                dtype=theano.config.floatX)
+            if n_in_dec is not None and n_out_dec is not None:
+                W_values = numpy.asarray(self.rng.normal(
+                    loc=0.,
+                    scale=0.005,
+                    size=(n_out_dec, n_in_dec)),
+                    dtype=theano.config.floatX)
+            else:
+                W_values = numpy.asarray(self.rng.uniform(
+                    low=-numpy.sqrt(6. / (self.n_in + self.n_out)),
+                    high=numpy.sqrt(6. / (self.n_in + self.n_out)),
+                    size=(self.n_out, self.n_in)),
+                    dtype=theano.config.floatX)
 
-            if self.activation == T.nnet.sigmoid:
-                W_values *= 4
+                if self.activation == T.nnet.sigmoid:
+                    W_values *= 4
 
             self.W_prime = theano.shared(value=W_values, name='W', borrow=True)
             self.params += [self.W_prime]

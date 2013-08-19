@@ -95,13 +95,10 @@ class DenoisingAutoencoder(Autoencoder):
         ae_costs = []
         batch_index = 0
         for epoch in xrange(n_epochs):
-            if shuffle_data:
-                print "shuffling the dataset"
-                numpy.random.shuffle(data)
-                data_shared.set_value(data)
-
+            idxs = numpy.arange(n_batches)
+            numpy.random.shuffle(idxs)
             print "Training at epoch %d" % epoch
-            for batch_index in xrange(n_batches):
+            for batch_index in idxs:
                 ae_costs.append(train_ae(batch_index))
                 if False:
                     print "Cost: ", ae_costs[-1]
