@@ -241,7 +241,7 @@ class Autoencoder(object):
             batch_size=100,
             n_epochs=20,
             lr_scaler=0.998,
-            weights_file="out/ae_weights_mnist.npy"):
+            weights_file="out/ae_weights_mnist.npy", corruption_quantity=0.0):
         """
         Fit the data to the autoencoder model. Basically this performs
         the learning.
@@ -250,7 +250,8 @@ class Autoencoder(object):
             raise Exception("Data can't be empty.")
 
         index = T.lscalar('index')
-        data_shared = theano.shared(numpy.asarray(data.tolist(), dtype=theano.config.floatX))
+        data = data * np.random.binomial(size=data.shape, n=1,p=1 - corruption_quantity)
+        data_shared = theano.shared(numpy.asarray(data, dtype=theano.config.floatX))
         n_batches = data.shape[0] / batch_size
         (cost, updates) = self.get_sgd_updates(learning_rate, lr_scaler, batch_size)
         train_ae = theano.function([index],
