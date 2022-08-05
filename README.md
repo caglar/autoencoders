@@ -2,6 +2,7 @@ autoencoders
 ============
 
 Implementation of several different types of autoencoders in Theano.
+
     * **da.py**: Denoising Autoencoder implementation.
     * **ca.py**: Contractive Autoencoder implementation.
     * **sa.py**: Sparse Autoencoder implementation.
